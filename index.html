@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solo Discipline - Task Tracker</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <!-- SPLASH / LOADING SCREEN -->
+  <div id="welcome-modal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="avatar-placeholder large"><i class="fa-solid fa-user icon"></i></div>
+        <h2 id="welcome-title" data-en="Welcome, Warrior!" data-ar="مرحبًا أيها المقاتل!">Welcome, Warrior!</h2>
+      </div>
+      <div class="modal-body">
+        <label for="user-name-input" id="name-label" data-en="Enter your name:" data-ar="أدخل اسمك:">Enter your name:</label>
+        <input type="text" id="user-name-input" placeholder="Your name..." maxlength="20" autofocus>
+      </div>
+      <div class="modal-footer">
+        <button id="welcome-start-btn" class="btn btn-primary"><i class="fa-solid fa-crosshairs icon"></i> <span data-en="Begin Journey" data-ar="ابدأ الرحلة">Begin Journey</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOP NAVIGATION BAR (combined header + tabs) -->
+  <header class="top-nav" id="top-nav">
+    <div class="top-nav-left">
+      <h1 class="app-title">Solo Discipline</h1>
+    </div>
+
+    <nav class="top-nav-tabs" id="top-nav-tabs">
+      <button class="nav-btn active" data-tab="today"><i class="fa-solid fa-clipboard-list icon"></i> <span data-en="Today" data-ar="اليوم">Today</span></button>
+      <button class="nav-btn" data-tab="habits"><i class="fa-solid fa-calendar-check icon"></i> <span data-en="Habits" data-ar="العادات">Habits</span></button>
+      <button class="nav-btn" data-tab="goals"><i class="fa-solid fa-bullseye icon"></i> <span data-en="Goals" data-ar="الأهداف">Goals</span></button>
+      <button class="nav-btn" data-tab="analytics"><i class="fa-solid fa-chart-simple icon"></i> <span data-en="Analytics" data-ar="الإحصائيات">Analytics</span></button>
+      <button class="nav-btn" data-tab="raids"><i class="fa-solid fa-dungeon icon"></i> <span data-en="Raids" data-ar="الغارات">Raids</span></button>
+      <button class="nav-btn" data-tab="achievements"><i class="fa-solid fa-trophy icon"></i> <span data-en="Achievements" data-ar="الإنجازات">Achievements</span></button>
+      <button class="nav-btn" data-tab="inventory"><i class="fa-solid fa-box-open icon"></i> <span data-en="Inventory" data-ar="المخزون">Inventory</span> <span class="nav-badge" id="inventory-count">0</span></button>
+    </nav>
+
+    <div class="top-nav-right">
+      <button id="lang-toggle" class="btn-icon" aria-label="Toggle language"><i class="fa-solid fa-language icon"></i></button>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT -->
+  <main class="content">
+    <!-- PROFILE CARD -->
+    <section class="profile-card" id="profile-card">
+      <div class="profile-avatar" id="profile-avatar">
+        <span class="avatar-text"><i class="fa-solid fa-user icon"></i></span>
+      </div>
+      <div class="profile-info">
+        <h2 id="profile-name">User</h2>
+        <p class="profile-rank" id="profile-rank">Eager Novice</p>
+        <div class="profile-stats">
+          <div class="stat">
+            <span class="stat-value" id="profile-points">0</span>
+            <span class="stat-label" data-en="Points" data-ar="نقاط">Points</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value" id="profile-level">1</span>
+            <span class="stat-label" data-en="Level" data-ar="المستوى">Level</span>
+          </div>
+        </div>
+        <div class="xp-bar-container">
+          <div class="xp-bar">
+            <div class="xp-fill" id="xp-fill" style="width:0%"></div>
+          </div>
+          <span class="xp-text" id="xp-text">0 / 100 XP</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- TODAY SECTION -->
+    <section class="tab-content active" id="tab-today">
+      <div class="section-header">
+        <h2><i class="fa-solid fa-clipboard-list icon"></i> <span data-en="Today's Tasks" data-ar="مهام اليوم">Today's Tasks</span></h2>
+        <div class="section-header-actions">
+          <span class="section-date" id="today-date"></span>
+          <button id="add-today-btn" class="btn btn-primary btn-sm"><i class="fa-solid fa-plus icon"></i> <span data-en="Add Task" data-ar="أضف مهمة">Add Task</span></button>
+        </div>
+      </div>
+      <div id="today-empty" class="empty-state">
+        <p data-en="No tasks for today. Plan ahead!" data-ar="لا توجد مهام لليوم. خطط مسبقًا!">No tasks for today. Plan ahead!</p>
+        <button class="btn btn-secondary" data-tab="habits" data-en="Go to Habits" data-ar="اذهب للعادة">Go to Habits</button>
+      </div>
+      <ul class="task-list" id="today-list"></ul>
+    </section>
+
+    <!-- HABITS SECTION -->
+    <section class="tab-content" id="tab-habits">
+      <div class="section-header">
+        <h2><i class="fa-solid fa-calendar-check icon"></i> <span data-en="Daily Habits &amp; Quests" data-ar="العادات والمهام اليومية">Daily Habits &amp; Quests</span></h2>
+      </div>
+      <div class="habits-form-card">
+        <div class="habits-form-row">
+          <input type="text" id="habit-name-input" class="form-input" placeholder="Habit name..." maxlength="50">
+          <input type="text" id="habit-desc-input" class="form-input" placeholder="Description..." maxlength="100">
+          <input type="number" id="habit-points-input" class="form-input habit-points-input" value="15" min="1" max="100">
+          <button id="add-habit-btn" class="btn btn-primary"><i class="fa-solid fa-plus icon"></i> <span data-en="Add" data-ar="إضافة">Add</span></button>
+        </div>
+      </div>
+      <div id="habits-empty" class="empty-state">
+        <p data-en="No habits yet. Create a daily habit!" data-ar="لا توجد عادات بعد. أنشئ عادة يومية!">No habits yet. Create a daily habit!</p>
+      </div>
+      <div class="habits-list" id="habits-list"></div>
+    </section>
+
+    <!-- GOALS SECTION -->
+    <section class="tab-content" id="tab-goals">
+      <div class="section-header">
+        <h2><i class="fa-solid fa-bullseye icon"></i> <span data-en="Goals & Milestones" data-ar="الأهداف والمعالم">Goals & Milestones</span></h2>
+        <button id="add-goal-btn" class="btn btn-primary"><i class="fa-solid fa-plus icon"></i> <span data-en="New Goal" data-ar="هدف جديد">New Goal</span></button>
+      </div>
+      <div id="goals-empty" class="empty-state">
+        <p data-en="No goals yet. Set a milestone!" data-ar="لا توجد أهداف بعد. حدد هدفًا!">No goals yet. Set a milestone!</p>
+      </div>
+      <div class="goals-grid" id="goals-grid"></div>
+    </section>
+
+    <!-- ANALYTICS SECTION -->
+    <section class="tab-content" id="tab-analytics">
+      <div class="section-header">
+        <h2><i class="fa-solid fa-chart-simple icon"></i> <span data-en="Analytics" data-ar="الإحصائيات">Analytics</span></h2>
+      </div>
+      <div class="chart-filters">
+        <button class="btn btn-filter active" data-filter="7">7 <span data-en="Days" data-ar="أيام">Days</span></button>
+        <button class="btn btn-filter" data-filter="30">30 <span data-en="Days" data-ar="يوم">Days</span></button>
+        <button class="btn btn-filter" data-filter="60">60 <span data-en="Days" data-ar="يوم">Days</span></button>
+      </div>
+      <div class="charts-grid">
+        <div class="chart-card">
+          <canvas id="performance-chart"></canvas>
+        </div>
+        <div class="chart-card small">
+          <canvas id="completion-chart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- ACHIEVEMENTS SECTION -->
+    <section class="tab-content" id="tab-achievements">
+      <div class="section-header">
+        <h2><i class="fa-solid fa-trophy icon"></i> <span data-en="Achievements" data-ar="الإنجازات">Achievements</span></h2>
+      </div>
+      <div class="achievements-grid" id="achievements-grid"></div>
+    </section>
+
+    <!-- INVENTORY SECTION -->
+    <section class="tab-content" id="tab-inventory">
+      <div class="section-header">
+        <h2><i class="fa-solid fa-box-open icon"></i> <span data-en="Loot Bag" data-ar="حقيبة الغنائم">Loot Bag</span></h2>
+      </div>
+      <div id="inventory-empty" class="empty-state">
+        <p data-en="No loot yet. Complete tasks to earn items!" data-ar="لا توجد غنائم بعد. أكمل المهام لكسب العناصر!">No loot yet. Complete tasks to earn items!</p>
+      </div>
+      <div class="inventory-grid" id="inventory-grid"></div>
+    </section>
+
+    <!-- RAIDS SECTION -->
+    <section class="tab-content" id="tab-raids">
+      <div class="section-header">
+        <h2><i class="fa-solid fa-dungeon icon"></i> <span data-en="Raids &amp; Dungeons" data-ar="الغارات والزنزانات">Raids &amp; Dungeons</span></h2>
+      </div>
+
+      <div class="raids-subsection" id="timed-raids-section">
+        <h3 class="raids-subtitle timed">⚠️ <span data-en="Active Timed Raids" data-ar="الغارات المحددة النشطة">Active Timed Raids</span></h3>
+        <div id="timed-raids-list" class="raids-grid"></div>
+        <div id="timed-raids-empty" class="empty-state">
+          <p data-en="No active timed raids. Wait for a Gate to appear!" data-ar="لا توجد غارات محددة نشطة. انتظر ظهور بوابة!">No active timed raids. Wait for a Gate to appear!</p>
+        </div>
+      </div>
+
+      <div class="raids-subsection" id="permanent-raids-section" style="margin-top: 28px;">
+        <h3 class="raids-subtitle permanent">🔓 <span data-en="Permanent Raids (Instant Dungeons)" data-ar="الغارات الدائمة (الزنزانات الفورية)">Permanent Raids (Instant Dungeons)</span></h3>
+        <div id="permanent-raids-list" class="raids-grid"></div>
+        <div id="permanent-raids-empty" class="empty-state">
+          <p data-en="All permanent raids completed. New ones may appear later!" data-ar="تم إكمال جميع الغارات الدائمة. قد تظهر غارات جديدة لاحقًا!">All permanent raids completed. New ones may appear later!</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- MODAL (shared) -->
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modal-title"></h3>
+        <button class="btn-icon modal-close"><i class="fa-solid fa-xmark icon"></i></button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+      <div class="modal-footer" id="modal-footer"></div>
+    </div>
+  </div>
+
+  <!-- GATE URGENT MODAL (Timed Raid Popup) -->
+  <div id="gate-modal" class="modal-overlay hidden">
+    <div class="gate-modal-card">
+      <div class="gate-modal-header">
+        <div class="gate-warning-pulse">⚠️</div>
+        <h2 class="gate-title">WARNING: A GATE HAS OPENED</h2>
+      </div>
+      <div class="gate-modal-body">
+        <div class="gate-rank-display" id="gate-rank-display">RANK: ???</div>
+        <p class="gate-description" id="gate-description">A mysterious gate has appeared near your location. Step through to face unknown challenges and claim powerful rewards.</p>
+        <div class="gate-details" id="gate-details">
+          <span id="gate-task-display">Task: ???</span>
+        </div>
+        <div class="gate-timer">
+          <span class="gate-timer-label"><i class="fa-regular fa-clock icon"></i> Time remaining to enter:</span>
+          <span class="gate-timer-value" id="gate-timer-value">30:00</span>
+        </div>
+      </div>
+      <div class="gate-modal-footer">
+        <button class="btn btn-secondary" id="gate-decline-btn"><i class="fa-solid fa-xmark icon"></i> <span data-en="Ignore (Raid Vanishes)" data-ar="تجاهل (تختفي الغارة)">Ignore (Raid Vanishes)</span></button>
+        <button class="btn btn-primary" id="gate-accept-btn"><i class="fa-solid fa-dungeon icon"></i> <span data-en="Accept Raid" data-ar="قبول الغارة">Accept Raid</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST CONTAINER -->
+  <div id="toast-container"></div>
+
+  <!-- QUOTE FOOTER -->
+  <footer class="quote-bar" id="quote-bar">
+    <button class="quote-nav quote-prev" id="quote-prev"><i class="fa-solid fa-chevron-left icon"></i></button>
+    <div class="quote-content">
+      <p class="quote-ar" id="quote-ar"></p>
+      <p class="quote-en" id="quote-en"></p>
+    </div>
+    <button class="quote-nav quote-next" id="quote-next"><i class="fa-solid fa-chevron-right icon"></i></button>
+  </footer>
+</body>
+</html>
