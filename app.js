@@ -36,7 +36,9 @@ const DEFAULTS = {
   },
   lastMigrationDate: null,
   habits: [],
-  habitsLastResetDate: null
+  habitsLastResetDate: null,
+  weeklySchedule: [],
+  weeklyScheduleLastMigrationDayIndex: null
 };
 
 const RANK_TIERS = [
@@ -480,6 +482,44 @@ const Storage = {
     data.tasks.today = newToday;
     data.tasks.tomorrow = data.tasks.tomorrow.filter(t => !t.locked);
     data.lastMigrationDate = today;
+
+    // --- Weekly Schedule midnight migration ---
+    if (yesterday && data.weeklySchedule && data.weeklySchedule.length > 0) {
+      const getDayIndex = (dateStr) => {
+        const d = new Date(dateStr + 'T00:00:00');
+        return (d.getDay() + 1) % 7; // 0=Sat, 1=Sun ... 6=Fri
+      };
+      const yesterdayDayIndex = getDayIndex(yesterday);
+      const yesterdayHabits = data.weeklySchedule.filter(h => h.dayIndex === yesterdayDayIndex);
+      for (const habit of yesterdayHabits) {
+        if (habit.completed) {
+          data.history.push({
+            date: yesterday,
+            type: 'completed',
+            points: habit.points,
+            xp: habit.xp,
+            taskText: habit.text
+          });
+          data.user.points += habit.points;
+          data.user.xp += habit.xp;
+        } else {
+          const penaltyPoints = Math.round(habit.points * 0.5);
+          const penaltyXp = 10;
+          data.user.points = Math.max(0, data.user.points - penaltyPoints);
+          data.user.xp = Math.max(0, data.user.xp - penaltyXp);
+          data.history.push({
+            date: yesterday,
+            type: 'missed',
+            points: -penaltyPoints,
+            xp: -penaltyXp,
+            taskText: habit.text
+          });
+        }
+        habit.completed = false;
+      }
+      data.weeklyScheduleLastMigrationDayIndex = yesterdayDayIndex;
+    }
+
     this.save();
   }
 };
@@ -511,6 +551,18 @@ function getRank(level) {
 
 function getRankColor(level) {
   return RANK_COLORS[getRank(level).color];
+}
+
+function getRealWorldDayIndex() {
+  return (new Date().getDay() + 1) % 7;
+}
+
+function getDayName(dayIndex, lang) {
+  const names = {
+    en: ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+    ar: ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة']
+  };
+  return names[lang][dayIndex];
 }
 
 /* ============================================================
@@ -1580,13 +1632,147 @@ const UI = {
     data.habitsLastResetDate = today;
 
     if (penalized) {
-      this.showToast('<i class="fa-solid fa-triangle-exclamation icon"></i> Uncompleted habits from yesterday! Points deducted.', 'error');
+      this.showToast('<i class="fa-solid fa-triangle-exclamation icon"></i> ' + t('habitPenalty'), 'error');
     }
 
     this.renderHabits();
     this.updateProfile();
     State.save();
   },
+
+  /* --- Weekly Schedule --- */
+  renderWeeklySchedule() {
+    const container = document.getElementById('schedule-grid');
+    if (!container) return;
+    const habits = State.data.weeklySchedule || [];
+    const lang = State.data.user.language;
+    const currentDayIndex = getRealWorldDayIndex();
+
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const dayHabits = habits.filter(h => h.dayIndex === i);
+      const isToday = i === currentDayIndex;
+      const dayLabel = getDayName(i, lang);
+
+      const habitsHTML = dayHabits.map(h => `
+        <div class="schedule-habit ${h.completed ? 'completed' : ''} ${isToday ? '' : 'disabled'}" data-id="${h.id}" title="${h.text}">
+          <button class="schedule-check-btn ${h.completed ? 'checked' : ''} ${isToday ? '' : 'locked'}" data-id="${h.id}" ${!isToday ? 'disabled' : ''}>
+            ${h.completed ? '<i class="fa-solid fa-check"></i>' : ''}
+          </button>
+          <span class="schedule-habit-text">${h.text}</span>
+          <span class="schedule-habit-points">+${h.points}</span>
+          <button class="schedule-delete-btn" data-id="${h.id}"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      `).join('');
+
+      days.push(`
+        <div class="schedule-day-col ${isToday ? 'today' : ''}" data-day="${i}">
+          <div class="schedule-day-header ${isToday ? 'active-day' : ''}">
+            <span class="schedule-day-name">${dayLabel}</span>
+          </div>
+          <div class="schedule-day-habits">${habitsHTML}</div>
+          <button class="schedule-add-habit-btn btn btn-secondary btn-sm" data-day="${i}">
+            <i class="fa-solid fa-plus icon"></i> <span data-en="Add" data-ar="إضافة">Add</span>
+          </button>
+        </div>
+      `);
+    }
+
+    container.innerHTML = days.join('');
+
+    // Bind check buttons
+    container.querySelectorAll('.schedule-check-btn:not([disabled])').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.id;
+        this.toggleScheduleHabit(id);
+      });
+    });
+
+    // Bind delete buttons
+    container.querySelectorAll('.schedule-delete-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.id;
+        State.data.weeklySchedule = State.data.weeklySchedule.filter(h => h.id !== id);
+        this.renderWeeklySchedule();
+        State.save();
+      });
+    });
+
+    // Bind add buttons
+    container.querySelectorAll('.schedule-add-habit-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const dayIndex = parseInt(btn.dataset.day);
+        this.showAddScheduleHabitModal(dayIndex);
+      });
+    });
+  },
+
+  showAddScheduleHabitModal(dayIndex) {
+    const dayName = getDayName(dayIndex, State.data.user.language);
+    this.showModal(
+      t('addScheduleHabit') + ' - ' + dayName,
+      `
+        <div class="form-group">
+          <label>${t('habitName')}</label>
+          <input type="text" id="modal-schedule-text" class="form-input" placeholder="${t('taskPlaceholder')}" maxlength="60">
+        </div>
+        <div class="form-group">
+          <label>${t('taskPoints')}</label>
+          <input type="number" id="modal-schedule-points" class="form-input" value="20" min="5" max="100">
+        </div>
+      `,
+      `
+        <button class="btn btn-secondary" data-close-modal>${t('cancel')}</button>
+        <button class="btn btn-primary" id="modal-add-schedule-btn"><i class="fa-solid fa-plus icon"></i> ${t('add')}</button>
+      `
+    );
+
+    document.getElementById('modal-add-schedule-btn').addEventListener('click', () => {
+      const text = document.getElementById('modal-schedule-text').value.trim();
+      const points = parseInt(document.getElementById('modal-schedule-points').value) || 20;
+      if (!text) return;
+      State.data.weeklySchedule.push({
+        id: uid(),
+        dayIndex,
+        text,
+        points,
+        xp: points * 2,
+        completed: false
+      });
+      this.closeModal();
+      this.renderWeeklySchedule();
+      State.save();
+    });
+  },
+
+  toggleScheduleHabit(id) {
+    const habit = State.data.weeklySchedule.find(h => h.id === id);
+    if (!habit || habit.completed) return;
+
+    const currentDayIndex = getRealWorldDayIndex();
+    if (habit.dayIndex !== currentDayIndex) {
+      this.showToast('<i class="fa-solid fa-lock icon"></i> ' + t('scheduleWrongDay'), 'error');
+      return;
+    }
+
+    habit.completed = true;
+    Game.completeTask(habit);
+    Game.addHistory({ type: 'completed', points: habit.points, xp: habit.xp, taskText: habit.text });
+    this.renderWeeklySchedule();
+    this.updateProfile();
+    this.checkAchievements();
+    this.showToast(`<i class="fa-solid fa-check-circle icon"></i> ${t('scheduleHabitDone')}! +${habit.points}pts`, 'success');
+
+    const loot = rollLoot(State.data.user.level);
+    if (loot) {
+      const nameStr = `${loot.icon} ${loot.name}${loot.level > 1 ? ` [Lvl ${loot.level}]` : ''}`;
+      addItemToInventory(loot);
+      this.renderInventory();
+      this.showToast(`<i class="fa-solid fa-gem icon"></i> [NOTIFICATION: You have acquired "${nameStr}"! Check your Inventory.]`, 'loot');
+    }
+
+    State.save();
+  }
 };
 
 /* ============================================================
@@ -1644,7 +1830,10 @@ const TRANSLATIONS = {
     deleteHabit: 'Delete',
     habitDone: 'Habit completed',
     noHabits: 'No habits yet. Create a daily habit!',
-    habitPenalty: 'Uncompleted habits! Points deducted.'
+    habitPenalty: 'Uncompleted habits! Points deducted.',
+    addScheduleHabit: 'Add Weekly Habit',
+    scheduleHabitDone: 'Weekly habit completed',
+    scheduleWrongDay: 'You can only check habits on their scheduled day!'
   },
   ar: {
     levelUp: 'ارتقى المستوى',
@@ -1697,7 +1886,10 @@ const TRANSLATIONS = {
     deleteHabit: 'حذف',
     habitDone: 'تم إنجاز العادة',
     noHabits: 'لا توجد عادات بعد. أنشئ عادة يومية!',
-    habitPenalty: 'عادات غير مكتملة! تم خصم النقاط.'
+    habitPenalty: 'عادات غير مكتملة! تم خصم النقاط.',
+    addScheduleHabit: 'إضافة عادة أسبوعية',
+    scheduleHabitDone: 'تم إنجاز العادة الأسبوعية',
+    scheduleWrongDay: 'يمكنك فقط تحديد العادات في يومها المحدد!'
   }
 };
 
@@ -1734,6 +1926,7 @@ function applyLanguage(lang) {
   UI.renderAchievements();
   UI.renderInventory();
   UI.renderRaids();
+  UI.renderWeeklySchedule();
   if (UI.charts.perf || UI.charts.comp) UI.updateCharts();
   State.save();
 }
@@ -1903,6 +2096,7 @@ function initApp() {
   UI.renderGoals();
   UI.renderAchievements();
   UI.renderInventory();
+  UI.renderWeeklySchedule();
   UI.updateCharts();
   UI.checkAchievements();
   UI.checkOverdueTasks();
@@ -2098,6 +2292,8 @@ function boot() {
     if (!State.data.inventory) State.data.inventory = [];
     if (!State.data.habits) State.data.habits = [];
     if (!State.data.habitsLastResetDate) State.data.habitsLastResetDate = null;
+    if (!State.data.weeklySchedule) State.data.weeklySchedule = [];
+    if (State.data.weeklyScheduleLastMigrationDayIndex === undefined) State.data.weeklyScheduleLastMigrationDayIndex = null;
     if (!State.data.raids) State.data.raids = JSON.parse(JSON.stringify(DEFAULTS.raids));
     if (!State.data.raids.permanent || State.data.raids.permanent.length === 0) {
       State.data.raids.permanent = JSON.parse(JSON.stringify(DEFAULTS.raids.permanent));
