@@ -30,6 +30,7 @@
   <!-- TOP NAVIGATION BAR (combined header + tabs) -->
   <header class="top-nav" id="top-nav">
     <div class="top-nav-left">
+      <button id="menu-toggle" class="btn-icon hamburger-btn" aria-label="Toggle menu"><i class="fa-solid fa-bars icon"></i></button>
       <h1 class="app-title">Solo Discipline</h1>
     </div>
 
@@ -48,6 +49,25 @@
       <button id="lang-toggle" class="btn-icon" aria-label="Toggle language"><i class="fa-solid fa-language icon"></i></button>
     </div>
   </header>
+
+  <!-- SIDE DRAWER (Mobile) -->
+  <div id="side-menu-overlay" class="side-menu-overlay hidden"></div>
+  <nav id="side-menu" class="side-menu">
+    <div class="side-menu-header">
+      <span class="side-menu-title">[ NAVIGATION ]</span>
+      <button id="side-menu-close" class="btn-icon hamburger-btn" aria-label="Close menu"><i class="fa-solid fa-xmark icon"></i></button>
+    </div>
+    <div class="side-menu-body">
+      <button class="nav-btn active" data-tab="today"><i class="fa-solid fa-clipboard-list icon"></i> <span data-en="Today" data-ar="اليوم">Today</span></button>
+      <button class="nav-btn" data-tab="habits"><i class="fa-solid fa-calendar-check icon"></i> <span data-en="Habits" data-ar="العادات">Habits</span></button>
+      <button class="nav-btn" data-tab="goals"><i class="fa-solid fa-bullseye icon"></i> <span data-en="Goals" data-ar="الأهداف">Goals</span></button>
+      <button class="nav-btn" data-tab="analytics"><i class="fa-solid fa-chart-simple icon"></i> <span data-en="Analytics" data-ar="الإحصائيات">Analytics</span></button>
+      <button class="nav-btn" data-tab="raids"><i class="fa-solid fa-dungeon icon"></i> <span data-en="Raids" data-ar="الغارات">Raids</span></button>
+      <button class="nav-btn" data-tab="schedule"><i class="fa-solid fa-calendar-days icon"></i> <span data-en="Schedule" data-ar="الجدولة">Schedule</span></button>
+      <button class="nav-btn" data-tab="achievements"><i class="fa-solid fa-trophy icon"></i> <span data-en="Achievements" data-ar="الإنجازات">Achievements</span></button>
+      <button class="nav-btn" data-tab="inventory"><i class="fa-solid fa-box-open icon"></i> <span data-en="Inventory" data-ar="المخزون">Inventory</span> <span class="nav-badge" id="side-inventory-count">0</span></button>
+    </div>
+  </nav>
 
   <!-- MAIN CONTENT -->
   <main class="content">
