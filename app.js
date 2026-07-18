@@ -679,7 +679,12 @@ const UI = {
       habitNameInput: $('habit-name-input'),
       habitDescInput: $('habit-desc-input'),
       habitPointsInput: $('habit-points-input'),
-      addHabitBtn: $('add-habit-btn')
+      addHabitBtn: $('add-habit-btn'),
+      menuToggle: $('menu-toggle'),
+      sideMenu: $('side-menu'),
+      sideMenuOverlay: $('side-menu-overlay'),
+      sideMenuClose: $('side-menu-close'),
+      sideInventoryCount: $('side-inventory-count')
     };
   },
 
@@ -1087,14 +1092,17 @@ const UI = {
 
     if (!grid) return;
 
+    const sideCount = this.els.sideInventoryCount;
     if (items.length === 0) {
       grid.innerHTML = '';
       if (empty) empty.style.display = 'block';
       if (count) count.textContent = '0';
+      if (sideCount) sideCount.textContent = '0';
       return;
     }
     if (empty) empty.style.display = 'none';
     if (count) count.textContent = items.length;
+    if (sideCount) sideCount.textContent = items.length;
 
     grid.innerHTML = items.map(item => {
       const qty = item.quantity || 1;
@@ -1113,6 +1121,27 @@ const UI = {
         </div>
       `;
     }).join('');
+  },
+
+  /* --- Side Menu Toggle --- */
+  toggleSideMenu(force) {
+    const menu = this.els.sideMenu;
+    const overlay = this.els.sideMenuOverlay;
+    if (!menu) return;
+    const isOpen = force !== undefined ? force : menu.classList.contains('open');
+    if (isOpen) {
+      menu.classList.remove('open');
+      overlay.classList.remove('open');
+      document.body.style.overflow = '';
+    } else {
+      menu.classList.add('open');
+      overlay.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+  },
+
+  closeSideMenu() {
+    this.toggleSideMenu(true);
   },
 
   /* --- Quotes --- */
@@ -1935,6 +1964,25 @@ function applyLanguage(lang) {
    9. EVENT BINDING
    ============================================================ */
 function bindEvents() {
+  // Side menu toggle
+  if (UI.els.menuToggle) {
+    UI.els.menuToggle.addEventListener('click', () => UI.toggleSideMenu());
+  }
+  if (UI.els.sideMenuClose) {
+    UI.els.sideMenuClose.addEventListener('click', () => UI.closeSideMenu());
+  }
+  if (UI.els.sideMenuOverlay) {
+    UI.els.sideMenuOverlay.addEventListener('click', () => UI.closeSideMenu());
+  }
+  // Side menu nav buttons close menu after switching tab
+  if (UI.els.sideMenu) {
+    UI.els.sideMenu.querySelectorAll('.nav-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        UI.closeSideMenu();
+      });
+    });
+  }
+
   // Language toggle
   UI.els.langToggle.addEventListener('click', () => {
     const current = State.data.user.language;
@@ -1942,9 +1990,10 @@ function bindEvents() {
   });
 
   // Nav button click (switch tab, scroll to top)
-  UI.els.navBtns.forEach(btn => {
+  const allNavBtns = () => document.querySelectorAll('.nav-btn');
+  allNavBtns().forEach(btn => {
     btn.addEventListener('click', () => {
-      UI.els.navBtns.forEach(b => b.classList.remove('active'));
+      allNavBtns().forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       const tab = btn.dataset.tab;
       UI.els.tabContents.forEach(tc => tc.classList.remove('active'));
@@ -1958,7 +2007,7 @@ function bindEvents() {
     if (el.classList.contains('nav-btn')) return; // already handled
     el.addEventListener('click', () => {
       const tab = el.dataset.tab;
-      UI.els.navBtns.forEach(b => b.classList.remove('active'));
+      allNavBtns().forEach(b => b.classList.remove('active'));
       document.querySelector(`.nav-btn[data-tab="${tab}"]`).classList.add('active');
       UI.els.tabContents.forEach(tc => tc.classList.remove('active'));
       document.getElementById(`tab-${tab}`).classList.add('active');
